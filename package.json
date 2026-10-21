@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Update Xbox controller firmware from a Chromium browser over WebUSB.",
+  "description": "Update Xbox controller firmware over WebUSB and copy official GuliKit KK3 firmware from a Chromium browser.",
   "scripts": {
-    "feed": "node scripts/fetch-feed.mjs",
+    "feed": "node scripts/fetch-feed.mjs && node scripts/fetch-gulikit-feed.mjs",
     "build": "tsc -p tsconfig.json && node scripts/build.mjs",
     "check": "tsc -p tsconfig.json --noEmit",
     "clean": "rm -rf dist"

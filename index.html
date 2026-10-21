@@ -3,22 +3,23 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>xpad-webusb-update — Xbox controller firmware from the browser</title>
+    <title>Controller firmware, from the browser — Xbox &amp; GuliKit KK3</title>
     <meta
       name="description"
-      content="Update Xbox controller firmware over WebUSB, without Windows or the Xbox Accessories app."
+      content="Update Xbox controller firmware over WebUSB, and copy official GuliKit KK3 Max/Pro firmware to the controller's update drive."
     />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
     <header class="hero">
       <div>
-        <p class="eyebrow">WebUSB · official Microsoft firmware</p>
-        <h1>Xbox controller firmware, from your browser</h1>
+        <p class="eyebrow">WebUSB · USB drive · official firmware</p>
+        <h1>Controller firmware, from your browser</h1>
         <p class="lede">
-          Reads the controller's real firmware versions, downloads the current
-          <code>rdhm</code> package from Microsoft's own feed and flashes it over USB.
-          No Windows, no Xbox Accessories app, no install.
+          Reads Xbox controller firmware versions and flashes Microsoft's signed
+          <code>rdhm</code> package over WebUSB. For GuliKit, it downloads the official
+          KK3 Max/Pro <code>.bin</code> and copies it to the controller's update drive.
+          No Windows app, no install.
         </p>
       </div>
       <div class="hero-side">
@@ -28,12 +29,23 @@
     </header>
 
     <div id="browser-warning" class="notice warn" hidden>
-      This browser does not expose <code>navigator.usb</code>. Use a Chromium-based
-      browser (Chrome, Edge, Brave, Opera, Chromium) on desktop, ChromeOS or Android.
-      Firefox and Safari do not implement WebUSB.
+      This browser is missing a web API this page needs. Xbox updates require
+      <code>navigator.usb</code>; GuliKit drive copy requires the File System Access API.
+      Use a desktop Chromium-based browser (Chrome, Edge, Brave, Opera, Chromium).
     </div>
 
     <main>
+      <section class="controller-bar" aria-label="Controller selection">
+        <div
+          id="controller-tabs"
+          class="segmented"
+          role="tablist"
+          aria-label="Choose controller"
+        ></div>
+        <p id="controller-detect" class="status" role="status">Detecting…</p>
+      </section>
+
+      <div id="xbox-flow" class="flow">
       <section class="card" id="connect-card">
         <div class="card-head">
           <h2><span class="step">1</span> Connect</h2>
@@ -175,8 +187,107 @@
         <h3>Log</h3>
         <pre id="log" class="log" aria-live="polite"></pre>
       </section>
+      </div>
+
+      <div id="gulikit-flow" class="flow" hidden>
+        <section class="card" id="gulikit-card">
+          <div class="card-head">
+            <h2><span class="step">1</span> Prepare the controller</h2>
+            <span class="muted">GuliKit update mode is a small USB drive, not a WebUSB device.</span>
+          </div>
+
+          <ol class="steps">
+            <li>Power the controller off.</li>
+            <li>Connect it with a data USB cable.</li>
+            <li>
+              Hold <strong>APG</strong> (the double-square button) + <strong>A</strong>, then
+              power the controller on.
+            </li>
+            <li>
+              A drive named <code>GuliKit</code> appears. Keep the cable connected and do not
+              unplug it during the update.
+            </li>
+          </ol>
+
+          <p class="muted small">
+            The browser cannot detect or open that drive on its own; you will pick its root
+            (or download the file) in step 3. If you have not mounted it yet, you can still
+            download and verify the firmware first.
+          </p>
+
+          <h3><span class="step">2</span> Firmware</h3>
+          <div id="gulikit-feed-status" class="status" role="status">Loading GuliKit feed…</div>
+          <dl id="gulikit-feed-info" class="kv"></dl>
+
+          <div id="gulikit-fsa-warning" class="notice warn" hidden>
+            This browser cannot write to the drive directly. Use
+            <strong>Download <code>.bin</code></strong> and copy the extracted file to the root of
+            the <code>GuliKit</code> drive with your file manager.
+          </div>
+
+          <div class="row wrap">
+            <label id="gulikit-model-label" class="field" hidden>
+              Model
+              <select id="gulikit-model"></select>
+            </label>
+            <button id="gulikit-download-btn" class="primary" disabled>
+              Download &amp; verify
+            </button>
+            <a
+              id="gulikit-manual-link"
+              class="button secondary"
+              href="https://www.gulikit.com/newsinfo/887152.html"
+              target="_blank"
+              rel="noreferrer"
+              >Official download</a
+            >
+            <label id="gulikit-file-label" class="button secondary">
+              Choose a local <code>.bin</code>
+              <input
+                id="gulikit-file-input"
+                type="file"
+                accept=".bin,application/octet-stream"
+                hidden
+              />
+            </label>
+          </div>
+
+          <progress id="gulikit-download-progress" max="1" value="0" hidden></progress>
+          <div id="gulikit-download-status" class="status" role="status"></div>
+
+          <div id="gulikit-package" hidden>
+            <p class="label">Selected file</p>
+            <dl id="gulikit-package-info" class="kv"></dl>
+          </div>
+
+          <h3><span class="step">3</span> Copy to the drive</h3>
+          <div class="row wrap">
+            <button id="gulikit-save-btn" class="primary" disabled>Copy to GuliKit drive</button>
+            <button id="gulikit-download-file-btn" class="secondary" disabled>
+              Download <code>.bin</code>
+            </button>
+            <span id="gulikit-save-status" class="status" role="status"></span>
+          </div>
+
+          <div id="gulikit-done" class="notice" hidden>
+            <strong>Copy started.</strong> Keep the cable connected. The drive will disappear
+            and the controller will power off when the update finishes. Do not unplug it before
+            that happens.
+          </div>
+
+          <p class="muted small">
+            The file must be at the root of the <code>GuliKit</code> drive. Do not copy it from
+            inside a zip archive; this page writes the extracted <code>.bin</code> directly.
+            After the controller reboots, check the version in the
+            <a href="https://setup.gulikit.com/" target="_blank" rel="noreferrer"
+              >GuliKit Setup Tool</a
+            >.
+          </p>
+        </section>
+      </div>
 
       <section class="card help" id="help">
+        <div id="xbox-help">
         <h2>Before you start</h2>
 
         <div class="notice">
@@ -298,13 +409,85 @@ echo -n '5-3:1.0' | sudo tee /sys/bus/usb/drivers/xpad/unbind</pre>
           documented by Microsoft as
           <a href="https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-gipusb/e7c90904-5e21-426e-b9ad-d82adeee0dbc">MS-GIPUSB</a>.
         </p>
+        </div>
+
+        <div id="gulikit-help" hidden>
+          <h2>Before you start</h2>
+
+          <div class="notice warn">
+            <strong>This is a drive copy, not a WebUSB flash.</strong> Put the controller in
+            update mode first: power it off, connect USB, hold <strong>APG</strong> +
+            <strong>A</strong>, then power it on. A volume named <code>GuliKit</code> appears.
+            Do not unplug the controller while the file is being copied or while the drive is
+            disappearing.
+          </div>
+
+          <h3>Find the right file</h3>
+          <p>
+            The page uses GuliKit's official KK3 Max/Pro release. The KK3 Max is
+            <code>NS39</code>; the KK3 Pro is <code>NS38</code>. The controller only accepts
+            the matching <code>.bin</code> at the root of its drive. Do not rename it, put it
+            in a folder, or copy the zip archive itself.
+          </p>
+
+          <h3>What this page can and cannot do</h3>
+          <ul>
+            <li>
+              It downloads the official file and verifies its SHA-256 against the bundled
+              feed before writing anything.
+            </li>
+            <li>
+              The browser cannot detect the <code>GuliKit</code> drive automatically. You
+              choose its root in the file picker; the page then writes the <code>.bin</code>.
+            </li>
+            <li>
+              It cannot see the update progress or the controller's version after flashing.
+              The drive disappearing and the controller powering off are the success signals.
+            </li>
+            <li>
+              If the File System Access API is unavailable, use the download fallback and copy
+              the extracted <code>.bin</code> to the drive with your file manager.
+            </li>
+          </ul>
+
+          <h3>If the drive does not appear</h3>
+          <ul>
+            <li>
+              Start from a powered-off controller; the button combination has to be held while
+              powering on, not after it has booted.
+            </li>
+            <li>
+              Use a data cable and try a different USB port. Close the GuliKit Setup Tool and
+              any file manager window that has the drive open.
+            </li>
+            <li>
+              On Windows the volume may be assigned a drive letter; on Linux/macOS it mounts by
+              its <code>GuliKit</code> label. Pick that volume's root in the picker.
+            </li>
+          </ul>
+
+          <h3>After the update</h3>
+          <p>
+            The controller powers off when it has finished. Unplug and reconnect it in normal
+            PC mode, then check the version in the
+            <a href="https://setup.gulikit.com/" target="_blank" rel="noreferrer"
+              >GuliKit Setup Tool</a
+            >. Official instructions and the manual download are on
+            <a
+              href="https://www.gulikit.com/newsinfo/887152.html"
+              target="_blank"
+              rel="noreferrer"
+              >GuliKit's KK3 Max/Pro firmware page</a
+            >.
+          </p>
+        </div>
       </section>
     </main>
 
     <footer class="muted small">
-      No telemetry, no runtime server. The page ships a snapshot of Microsoft's feed
-      and firmware; the optional proxy is only a fallback because the CDN does not
-      allow cross-origin reads.
+      No telemetry, no runtime server. The page ships snapshots of Microsoft's feed and
+      GuliKit's official firmware; the optional proxy is only an Xbox fallback because
+      Microsoft's CDN does not allow cross-origin reads.
     </footer>
 
     <script type="module" src="./main.js"></script>

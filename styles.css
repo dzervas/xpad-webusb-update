@@ -103,6 +103,136 @@ main {
   gap: 1.25rem;
 }
 
+.flow {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.controller-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  flex-wrap: wrap;
+  padding: 0.55rem 0.7rem;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 11px;
+}
+
+.segmented {
+  display: inline-flex;
+  gap: 0.15rem;
+  padding: 0.2rem;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.seg-tab {
+  border: 0;
+  border-radius: 6px;
+  padding: 0.42rem 0.8rem;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.2;
+  transition: none;
+}
+
+.seg-tab:hover:not(:disabled) {
+  border-color: transparent;
+  background: #26303c;
+  color: var(--text);
+}
+
+.seg-tab[aria-selected="true"] {
+  background: var(--accent-2);
+  color: #fff;
+  font-weight: 600;
+}
+
+.seg-tab.detected::before {
+  content: "";
+  display: inline-block;
+  width: 0.42rem;
+  height: 0.42rem;
+  margin-right: 0.38rem;
+  border-radius: 50%;
+  background: var(--accent);
+  vertical-align: 0.08em;
+}
+
+.seg-tab.detected[aria-selected="true"]::before {
+  background: #fff;
+}
+
+#controller-detect {
+  flex: 1;
+  min-width: 15rem;
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.steps {
+  display: grid;
+  gap: 0.3rem;
+  margin: 0.4rem 0 0.8rem;
+  padding-left: 1.35rem;
+  color: var(--text);
+}
+
+.steps li::marker {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.field {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.field select {
+  font: inherit;
+  color: var(--text);
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 0.42rem 0.55rem;
+}
+
+.label {
+  margin: 0.75rem 0 0.15rem;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+#gulikit-card h3 {
+  margin-top: 1.3rem;
+}
+
+#gulikit-card h3 .step {
+  width: 1.35rem;
+  height: 1.35rem;
+  font-size: 0.75rem;
+}
+
+#gulikit-package {
+  margin-top: 0.75rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid var(--line);
+}
+
+#gulikit-package-info {
+  margin-bottom: 0;
+}
+
 .card {
   background: var(--panel);
   border: 1px solid var(--line);
@@ -491,6 +621,20 @@ footer {
 
   .hero-side {
     align-items: flex-start;
+  }
+
+  .controller-bar {
+    align-items: flex-start;
+    border-radius: 10px;
+  }
+
+  .segmented {
+    width: 100%;
+  }
+
+  .seg-tab {
+    flex: 1;
+    padding-inline: 0.5rem;
   }
 
   .kv {
