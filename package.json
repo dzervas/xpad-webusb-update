@@ -1,0 +1,17 @@
+{
+  "name": "xpad-webusb-update",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Update Xbox controller firmware from a Chromium browser over WebUSB.",
+  "scripts": {
+    "feed": "node scripts/fetch-feed.mjs",
+    "build": "tsc -p tsconfig.json && node scripts/build.mjs",
+    "check": "tsc -p tsconfig.json --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "@types/w3c-web-usb": "^1.0.14",
+    "typescript": "^5.9.3"
+  }
+}

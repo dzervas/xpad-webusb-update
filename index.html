@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>xpad-webusb-update — Xbox controller firmware from the browser</title>
+    <meta
+      name="description"
+      content="Update Xbox controller firmware over WebUSB, without Windows or the Xbox Accessories app."
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="hero">
+      <div>
+        <p class="eyebrow">WebUSB · official Microsoft firmware</p>
+        <h1>Xbox controller firmware, from your browser</h1>
+        <p class="lede">
+          Reads the controller's real firmware versions, downloads the current
+          <code>rdhm</code> package from Microsoft's own feed and flashes it over USB.
+          No Windows, no Xbox Accessories app, no install.
+        </p>
+      </div>
+      <div class="hero-side">
+        <span class="badge">Chrome / Edge / Brave / Opera</span>
+        <a href="#help">Setup &amp; safety</a>
+      </div>
+    </header>
+
+    <div id="browser-warning" class="notice warn" hidden>
+      This browser does not expose <code>navigator.usb</code>. Use a Chromium-based
+      browser (Chrome, Edge, Brave, Opera, Chromium) on desktop, ChromeOS or Android.
+      Firefox and Safari do not implement WebUSB.
+    </div>
+
+    <main>
+      <section class="card" id="connect-card">
+        <div class="card-head">
+          <h2><span class="step">1</span> Connect</h2>
+          <span class="muted">The controller must be wired, not Bluetooth.</span>
+        </div>
+
+        <div class="row">
+          <button id="connect-btn" class="primary">Connect controller</button>
+          <span id="connect-status" class="status" role="status">Not connected.</span>
+        </div>
+
+        <div id="release-panel" class="notice warn" hidden>
+          <p>
+            <strong>The browser could not take the controller over.</strong>
+            Either your user cannot open the USB device node, or another driver owns
+            interface 0. WebUSB cannot detach kernel drivers, so fix that first, then
+            reconnect.
+          </p>
+          <div id="release-content"></div>
+          <button id="retry-btn" class="secondary">Try again</button>
+        </div>
+
+        <div id="device-section" hidden>
+          <div class="diag-grid">
+            <div>
+              <h3>USB device</h3>
+              <dl id="usb-info" class="kv"></dl>
+            </div>
+            <div>
+              <h3>GIP / firmware</h3>
+              <dl id="gip-info" class="kv"></dl>
+            </div>
+            <div>
+              <h3>Update protocol (UFU)</h3>
+              <dl id="ufu-info" class="kv"></dl>
+            </div>
+          </div>
+
+          <h3>Flash components</h3>
+          <table class="table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Version</th>
+                <th>Partition</th>
+                <th>Notes</th>
+              </tr>
+            </thead>
+            <tbody id="components-body"></tbody>
+          </table>
+          <p id="protocol-note" class="muted"></p>
+        </div>
+      </section>
+
+      <section class="card" id="firmware-card" hidden>
+        <div class="card-head">
+          <h2><span class="step">2</span> Firmware package</h2>
+          <span class="muted">Current release from Microsoft's PC feed.</span>
+        </div>
+
+        <div id="feed-status" class="status" role="status">Looking up the feed…</div>
+        <dl id="feed-info" class="kv"></dl>
+        <p id="feed-fallback" class="notice" hidden></p>
+
+        <div class="row wrap">
+          <button id="download-btn" class="primary" hidden>Download &amp; verify</button>
+          <a id="manual-link" class="button secondary" hidden>Direct download</a>
+          <label id="file-label" class="button secondary">
+            Choose a local <code>.bin</code>
+            <input id="file-input" type="file" accept=".bin,application/octet-stream" hidden />
+          </label>
+          <span
+            class="tip"
+            tabindex="0"
+            role="note"
+            aria-label="Why the page bundles the firmware feed"
+            data-tip="Microsoft's CDN does not send CORS headers, so a web page cannot read the firmware file directly. The deployed page therefore ships a snapshot of Microsoft's feed and firmware under data/ and reads it same-origin. If that snapshot is missing, it falls back to the public allorigins.win proxy. Either way, the bytes are verified against the SHA-256 in the file name before they are used. Prefer not to use a third party? Use Direct download and then Choose a local .bin."
+            >i</span
+          >
+        </div>
+
+        <progress id="download-progress" max="1" value="0" hidden></progress>
+        <div id="download-status" class="status" role="status"></div>
+
+        <div id="package-section" hidden>
+          <h3>Loaded package</h3>
+          <dl id="package-info" class="kv"></dl>
+          <table class="table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Version</th>
+                <th>Size</th>
+                <th>Address</th>
+                <th>Kind</th>
+              </tr>
+            </thead>
+            <tbody id="package-body"></tbody>
+          </table>
+          <div id="package-status" class="status" role="status"></div>
+        </div>
+      </section>
+
+      <section class="card" id="update-card" hidden>
+        <div class="card-head">
+          <h2><span class="step">3</span> Update</h2>
+          <span class="muted">Read the plan before writing anything.</span>
+        </div>
+
+        <div class="row wrap">
+          <button id="plan-btn" class="secondary">Check plan</button>
+          <label class="check">
+            <input id="confirm-check" type="checkbox" />
+            I understand an interrupted flash can leave the controller unusable until it is
+            reconnected and retried.
+          </label>
+        </div>
+
+        <div id="plan-status" class="status" role="status"></div>
+        <table id="plan-table" class="table" hidden>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Controller</th>
+              <th>Package</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="plan-body"></tbody>
+        </table>
+
+        <div class="row">
+          <button id="update-btn" class="danger" disabled>Start update</button>
+          <span id="update-status" class="status" role="status"></span>
+        </div>
+
+        <progress id="update-progress" max="1" value="0" hidden></progress>
+
+        <h3>Log</h3>
+        <pre id="log" class="log" aria-live="polite"></pre>
+      </section>
+
+      <section class="card help" id="help">
+        <h2>Before you start</h2>
+
+        <div class="notice">
+          <strong>Use a data cable and keep it connected.</strong> The controller restarts
+          five times during a full update and re-enumerates on USB. Do not unplug it, close
+          the tab or put the machine to sleep while the progress bar is moving. If an update
+          stops halfway, plug the controller back in and run it again; it resumes with the
+          components that still differ.
+        </div>
+
+        <h3>Open the controller and release it from xpad</h3>
+        <p>
+          Two separate things: the udev rule lets your user open the USB device node,
+          and the unbind releases interface 0 from the kernel driver. Browsers do not
+          detach kernel drivers, so Linux needs both.
+        </p>
+
+        <details open>
+          <summary>Linux</summary>
+          <ol>
+            <li>
+              Allow your user to open the controller's USB device node, then replug the
+              controller. This rule lives in <code>/run</code> until reboot, so it also
+              works on NixOS and systems with a read-only <code>/etc</code>:
+              <pre class="code">sudo install -d /run/udev/rules.d
+echo 'SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{bDeviceClass}=="ff", ATTR{bDeviceSubClass}=="47", ATTR{bDeviceProtocol}=="d0", TAG+="uaccess"' \
+  | sudo tee /run/udev/rules.d/70-xbox-webusb.rules
+sudo udevadm control --reload-rules
+sudo udevadm trigger --action=add --subsystem-match=usb</pre>
+            </li>
+            <li>
+              Find the interface name and release it from <code>xpad</code>:
+              <pre class="code">ls -l /sys/bus/usb/drivers/xpad/
+# e.g. 5-3:1.0
+echo -n '5-3:1.0' | sudo tee /sys/bus/usb/drivers/xpad/unbind</pre>
+              If the controller is bound to a different driver (for example
+              <code>xpadneo</code>), use that driver's directory instead.
+            </li>
+            <li>
+              After the update, unplug and replug the controller, or bind it back:
+              <pre class="code">echo -n '5-3:1.0' | sudo tee /sys/bus/usb/drivers/xpad/bind</pre>
+            </li>
+          </ol>
+          <p class="muted small">
+            NixOS: do not use <code>services.udev.extraRules</code> for this; it becomes
+            <code>99-local.rules</code>, which is too late for the <code>uaccess</code>
+            builtin. Install the same rule with <code>services.udev.packages</code> and
+            <code>destination = "/etc/udev/rules.d/70-xbox-webusb.rules"</code>. The
+            <code>/run</code> rule above works without a rebuild.
+          </p>
+        </details>
+
+        <details>
+          <summary>Windows</summary>
+          <ol>
+            <li>
+              WebUSB needs WinUSB on the controller. With
+              <a href="https://zadig.akeo.ie/">Zadig</a>: <em>Options → List All Devices</em>,
+              select <em>Controller</em> (USB ID <code>045E:0B12</code>), choose
+              <em>WinUSB</em> and <em>Replace Driver</em>.
+            </li>
+            <li>
+              This replaces the stock Xbox driver, so the pad stops working as a gamepad
+              until you restore it: Device Manager → the controller → <em>Uninstall
+              device</em> (tick <em>Delete the driver software</em>), then replug.
+            </li>
+            <li>
+              The Xbox Accessories app cannot update the controller while WinUSB is bound.
+              Use this page, or restore the stock driver first.
+            </li>
+          </ol>
+        </details>
+
+        <details>
+          <summary>macOS</summary>
+          <p>
+            Not supported: Apple's <code>XboxUSBDevice</code> driver holds the controller
+            exclusively and there is no supported way for a browser to take it over. Use the
+            native tool instead:
+            <code>sudo xboxctl update --latest</code>
+            (<a href="https://github.com/bb441db/xboxctl">xboxctl</a>).
+          </p>
+        </details>
+
+        <details>
+          <summary>ChromeOS / Android</summary>
+          <p>
+            No driver to release. Connect the controller with a data cable (USB-OTG on
+            Android), press Connect and allow the device. Chrome on Android supports WebUSB;
+            a desktop Chromium browser is still the better-tested path.
+          </p>
+        </details>
+
+        <h3>Other things that hold the controller open</h3>
+        <p>
+          Close Steam, <code>xboxdrv</code>, gamepad testers and any other tab that uses the
+          controller. Only one program can claim interface 0 at a time.
+        </p>
+
+        <h3>What this can and cannot do</h3>
+        <ul>
+          <li>
+            It flashes <strong>official, signed</strong> Microsoft firmware. The controller
+            verifies the signature; custom firmware is not possible.
+          </li>
+          <li>
+            The bootloader (component 1) is never written, so a failed update can normally be
+            recovered by reconnecting and retrying.
+          </li>
+          <li>
+            Firmware updates are USB-only. Microsoft does not support updating over
+            Bluetooth, and neither does this page.
+          </li>
+        </ul>
+
+        <p class="muted small">
+          Protocol implementation ported from
+          <a href="https://github.com/bb441db/xboxctl">xboxctl</a> (0BSD). GIP transport is
+          documented by Microsoft as
+          <a href="https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-gipusb/e7c90904-5e21-426e-b9ad-d82adeee0dbc">MS-GIPUSB</a>.
+        </p>
+      </section>
+    </main>
+
+    <footer class="muted small">
+      No telemetry, no runtime server. The page ships a snapshot of Microsoft's feed
+      and firmware; the optional proxy is only a fallback because the CDN does not
+      allow cross-origin reads.
+    </footer>
+
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>
