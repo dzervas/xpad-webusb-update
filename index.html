@@ -25,6 +25,12 @@
       <div class="hero-side">
         <span class="badge">Chrome / Edge / Brave / Opera</span>
         <a href="#help">Setup &amp; safety</a>
+        <a
+          href="https://github.com/dzervas/xpad-webusb-update"
+          target="_blank"
+          rel="noreferrer"
+          >GitHub ↗</a
+        >
       </div>
     </header>
 
@@ -55,6 +61,23 @@
         <div class="row">
           <button id="connect-btn" class="primary">Connect controller</button>
           <span id="connect-status" class="status" role="status">Not connected.</span>
+        </div>
+
+        <div class="test-panel">
+          <div>
+            <strong>Rumble test</strong>
+            <p class="muted small">
+              Optional. Uses the Gamepad API, not WebUSB, so it works while
+              <code>xpad</code> owns the controller. Press a button on the pad first if it
+              is not listed.
+            </p>
+          </div>
+          <div class="test-actions">
+            <button id="rumble-btn" class="secondary" type="button">Test rumble</button>
+            <span id="rumble-status" class="status" role="status"
+              >Press a button on the controller, then test.</span
+            >
+          </div>
         </div>
 
         <div id="release-panel" class="notice warn" hidden>
@@ -214,6 +237,20 @@
             (or download the file) in step 3. If you have not mounted it yet, you can still
             download and verify the firmware first.
           </p>
+
+          <div class="row wrap">
+            <a
+              class="button secondary"
+              href="https://setup.gulikit.com/"
+              target="_blank"
+              rel="noreferrer"
+              >Configure in PC mode</a
+            >
+            <span class="muted small">
+              Button mapping, turbo/auto-fire, vibration, dead zones and lighting. The
+              APG + A drive is firmware only.
+            </span>
+          </div>
 
           <h3><span class="step">2</span> Firmware</h3>
           <div id="gulikit-feed-status" class="status" role="status">Loading GuliKit feed…</div>
@@ -428,6 +465,17 @@ echo -n '5-3:1.0' | sudo tee /sys/bus/usb/drivers/xpad/unbind</pre>
             <code>NS39</code>; the KK3 Pro is <code>NS38</code>. The controller only accepts
             the matching <code>.bin</code> at the root of its drive. Do not rename it, put it
             in a folder, or copy the zip archive itself.
+          </p>
+
+          <h3>Settings are separate from firmware updates</h3>
+          <p>
+            The APG + A drive only accepts firmware. To change button mapping,
+            turbo/auto-fire, vibration, dead zones or lighting, reconnect the controller in
+            normal PC mode and open the
+            <a href="https://setup.gulikit.com/" target="_blank" rel="noreferrer"
+              >GuliKit Setup Tool</a
+            >. It works over USB, Bluetooth or the KK3 Hyperlink 2.4G adapter on firmware
+            V5.7 or newer.
           </p>
 
           <h3>What this page can and cannot do</h3>

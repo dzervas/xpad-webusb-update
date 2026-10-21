@@ -51,6 +51,13 @@ import {
 import type { ControllerTool, Detection } from "./types.js";
 
 const USB_VENDOR = 0x045e;
+const XBOX_USB_ID = /045e.*0b12/i;
+const XBOX_VENDOR_ID = /045e/i;
+const XBOX_GAMEPAD = /xbox/i;
+
+type HapticActuatorWithEffects = GamepadHapticActuator & {
+  readonly effects?: readonly string[];
+};
 
 interface UsbConnectionEvent extends Event {
   device: USBDevice;
@@ -62,6 +69,8 @@ export function createXboxTool(): ControllerTool {
 
   const connectBtn = byId<HTMLButtonElement>("connect-btn");
   const connectStatus = byId<HTMLElement>("connect-status");
+  const rumbleBtn = byId<HTMLButtonElement>("rumble-btn");
+  const rumbleStatus = byId<HTMLElement>("rumble-status");
   const retryBtn = byId<HTMLButtonElement>("retry-btn");
   const releasePanel = byId<HTMLElement>("release-panel");
   const releaseContent = byId<HTMLElement>("release-content");
@@ -123,6 +132,96 @@ export function createXboxTool(): ControllerTool {
 
   function log(message: string, kind: "" | "ok" | "warn" | "err" = ""): void {
     logView.log(message, kind);
+  }
+
+  function isXboxGamepad(pad: Gamepad): boolean {
+    return XBOX_USB_ID.test(pad.id) || XBOX_VENDOR_ID.test(pad.id) || XBOX_GAMEPAD.test(pad.id);
+  }
+
+  function findXboxGamepad(): Gamepad | null {
+    if (typeof navigator.getGamepads !== "function") return null;
+    const pads = Array.from(navigator.getGamepads()).filter(
+      (pad): pad is Gamepad => pad !== null,
+    );
+    return (
+      pads.find((pad) => XBOX_USB_ID.test(pad.id)) ??
+      pads.find((pad) => XBOX_VENDOR_ID.test(pad.id)) ??
+      pads.find((pad) => XBOX_GAMEPAD.test(pad.id)) ??
+      null
+    );
+  }
+
+  function showRumbleHint(): void {
+    if (typeof navigator.getGamepads !== "function") {
+      rumbleBtn.disabled = true;
+      setStatus(rumbleStatus, "This browser does not expose the Gamepad API.", "warn");
+      return;
+    }
+    setStatus(
+      rumbleStatus,
+      findXboxGamepad()
+        ? "Xbox gamepad ready. Test rumble."
+        : "Press a button on the controller, then test.",
+      "",
+    );
+  }
+
+  async function testRumble(): Promise<void> {
+    if (typeof navigator.getGamepads !== "function") {
+      setStatus(rumbleStatus, "This browser does not expose the Gamepad API.", "error");
+      return;
+    }
+
+    const pad = findXboxGamepad();
+    if (!pad) {
+      setStatus(
+        rumbleStatus,
+        "No Xbox gamepad found. Press a button on the controller, then try again.",
+        "warn",
+      );
+      return;
+    }
+
+    const actuator = pad.vibrationActuator as HapticActuatorWithEffects | null | undefined;
+    if (!actuator || typeof actuator.playEffect !== "function") {
+      setStatus(rumbleStatus, "This controller has no vibration actuator in the browser.", "error");
+      return;
+    }
+
+    rumbleBtn.disabled = true;
+    try {
+      setStatus(rumbleStatus, "Body rumble…", "busy");
+      await actuator.playEffect("dual-rumble", {
+        duration: 450,
+        strongMagnitude: 0.75,
+        weakMagnitude: 0.75,
+      });
+
+      if (actuator.effects && !actuator.effects.includes("trigger-rumble")) {
+        setStatus(rumbleStatus, "Body rumble sent; trigger rumble is not exposed here.", "ok");
+        return;
+      }
+
+      setStatus(rumbleStatus, "Trigger rumble…", "busy");
+      try {
+        await actuator.playEffect("trigger-rumble", {
+          duration: 450,
+          leftTrigger: 0.8,
+          rightTrigger: 0.8,
+        });
+        setStatus(rumbleStatus, "Body and trigger rumble sent.", "ok");
+      } catch (error) {
+        setStatus(
+          rumbleStatus,
+          `Body rumble sent; trigger rumble is not available (${errorMessage(error)}).`,
+          "warn",
+        );
+      }
+    } catch (error) {
+      setStatus(rumbleStatus, `Rumble failed: ${errorMessage(error)}`, "error");
+    } finally {
+      rumbleBtn.disabled = false;
+    }
   }
 
   function currentFirmware(): string | null {
@@ -893,6 +992,9 @@ export function createXboxTool(): ControllerTool {
   connectBtn.addEventListener("click", () => {
     void connect();
   });
+  rumbleBtn.addEventListener("click", () => {
+    void testRumble();
+  });
   retryBtn.addEventListener("click", () => {
     void connect();
   });
@@ -940,6 +1042,17 @@ export function createXboxTool(): ControllerTool {
     })();
   });
 
+  window.addEventListener("gamepadconnected", (event) => {
+    const pad = (event as GamepadEvent).gamepad;
+    if (isXboxGamepad(pad)) setStatus(rumbleStatus, "Xbox gamepad ready. Test rumble.", "");
+  });
+  window.addEventListener("gamepaddisconnected", (event) => {
+    const pad = (event as GamepadEvent).gamepad;
+    if (isXboxGamepad(pad) && !findXboxGamepad()) {
+      setStatus(rumbleStatus, "Xbox controller disconnected.", "warn");
+    }
+  });
+
   if ("usb" in navigator) {
     navigator.usb.addEventListener("disconnect", (event: Event) => {
       if (updating || !session) return;
@@ -956,6 +1069,7 @@ export function createXboxTool(): ControllerTool {
 
   renderDiagnostics();
   refreshButtons();
+  showRumbleHint();
   void loadFeed();
 
   return {

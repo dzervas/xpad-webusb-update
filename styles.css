@@ -106,6 +106,7 @@ main {
 .flow {
   display: grid;
   gap: 1.25rem;
+  min-width: 0;
 }
 
 .controller-bar {
@@ -239,6 +240,7 @@ main {
   border-radius: 14px;
   padding: 1.25rem;
   scroll-margin-top: 1rem;
+  min-width: 0;
 }
 
 .card-head {
@@ -375,6 +377,33 @@ button.danger:hover:not(:disabled) {
 .check input {
   margin-top: 0.25rem;
   accent-color: var(--accent-2);
+}
+
+.test-panel {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+  margin-top: 0.9rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--line);
+}
+
+.test-panel > div:first-child {
+  flex: 1 1 18rem;
+}
+
+.test-panel p {
+  margin: 0.15rem 0 0;
+  max-width: 58ch;
+}
+
+.test-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
 }
 
 .notice {
